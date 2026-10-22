@@ -1,12 +1,22 @@
-import {io} from 'socket.io-client';
 
+const ACTIONS = require("./actions");
 
-export const initSocket=async()=>{
-    const options={
-        "force new connection":true,
-        reconnectionAttempt:'Infinity',
-        timeout:10000,
-        transports:['websocket']
-    };
-    return io(process.env.REACT_APP_BACKEND_URL,options)
-}
+module.exports = (io) => {
+    io.on("connection", (socket) => {
+        console.log("Socket connected:", socket.id);
+
+        socket.on(ACTIONS.JOIN, ({ roomId, username }) => {
+            if (!roomId || !username) {
+                return;
+            }
+
+            socket.join(roomId);
+
+            console.log(`${username} joined room ${roomId}`);
+        });
+
+        socket.on("disconnect", () => {
+            console.log("User disconnected:", socket.id);
+        });
+    });
+};
