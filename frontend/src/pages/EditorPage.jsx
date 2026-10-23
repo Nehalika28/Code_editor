@@ -1,14 +1,16 @@
 
 import { useState, useRef, useEffect } from "react";
-import { useLocation, useParams } from "react-router-dom";
+import { useLocation, useParams ,useNavigate,Navigate} from "react-router-dom";
 import logo from "../assets/logo.jpeg";
 import Editor from "./Editor";
 import "../App.css";
 import Avatar from "react-avatar";
 import { initSocket } from "../utils/socket";
 import { ACTIONS } from "../actions";
+import toast from 'react-hot-toast';
 
 export default function EditorPage() {
+    const reactNavigator=useNavigate();
     const location = useLocation();
     const { roomId } = useParams();
     const username = location.state?.username;
@@ -24,7 +26,14 @@ export default function EditorPage() {
 useEffect(() => {
     const socket = initSocket();
     socketRef.current = socket;
+    socketRef.current.on('connected_error',(err)=>handleErrors(err));
+    socketRef.current.on('connect_failed',(err)=>handleErrors(err));
 
+    function handleErrors(e){
+        console.log('socket error',e);
+        toast.error('socket connection failed ,try again later');
+        reactNavigator('/');
+    }
     socket.on("connect", () => {
         console.log("Connected:", socket.id);
 
@@ -44,6 +53,10 @@ useEffect(() => {
     };
 }, [roomId, username]);
 
+if(!location.state){
+ return <Navigate to="/"/>
+}
+   
 
     return (
         <div className="mainwrap">
