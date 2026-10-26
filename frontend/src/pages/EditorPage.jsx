@@ -1,83 +1,86 @@
 
 import { useState, useRef, useEffect } from "react";
-import { useLocation, useParams ,useNavigate,Navigate} from "react-router-dom";
+import {
+    useLocation,
+    useParams,
+    useNavigate,
+    Navigate,
+} from "react-router-dom";
 import logo from "../assets/logo.jpeg";
 import Editor from "./Editor";
 import "../App.css";
 import Avatar from "react-avatar";
 import { initSocket } from "../utils/socket";
 import { ACTIONS } from "../actions";
-import toast from 'react-hot-toast';
+import toast from "react-hot-toast";
 
 export default function EditorPage() {
-    const reactNavigator=useNavigate();
+    const reactNavigator = useNavigate();
     const location = useLocation();
     const { roomId } = useParams();
     const username = location.state?.username;
 
     const socketRef = useRef(null);
+    const [clients, setClients] = useState([]);
 
-    const [clients, setClients] = useState([
-        { socketId: 1, username: "Rakesh H" },
-        { socketId: 2, username: "John H" },
-    ]);
+    useEffect(() => {
+        const socket = initSocket();
+        socketRef.current = socket;
 
+        function handleErrors(err) {
+            console.error("Socket error:", err);
+            toast.error("Socket connection failed. Try again later.");
+            reactNavigator("/");
+        }
 
-useEffect(() => {
-    const socket = initSocket();
-    socketRef.current = socket;
-    socketRef.current.on('connected_error',(err)=>handleErrors(err));
-    socketRef.current.on('connect_failed',(err)=>handleErrors(err));
+        socket.on("connect_error", handleErrors);
 
-    function handleErrors(e){
-        console.log('socket error',e);
-        toast.error('socket connection failed ,try again later');
-        reactNavigator('/');
-    }
-    socket.on("connect", () => {
-        console.log("Connected:", socket.id);
+        socket.on("connect", () => {
+            console.log("Connected:", socket.id);
 
-        socket.emit(ACTIONS.JOIN, {
-            roomId,
-            username,
+            socket.emit(ACTIONS.JOIN, {
+                roomId,
+                username,
+            });
         });
-    });
 
-    socket.on("connect_error", (error) => {
-        console.error("Socket connection error:", error.message);
-    });
+        socket.on(
+            ACTIONS.JOINED,
+            ({ clients, username: joinedUsername, socketId }) => {
+                setClients(clients);
 
-    return () => {
-        socket.disconnect();
-        socketRef.current = null;
-    };
-}, [roomId, username]);
+                if (joinedUsername !== username) {
+                    toast.success(`${joinedUsername} joined the room`);
+                    console.log(`${joinedUsername} joined`);
+                }
+            }
+        );
 
-if(!location.state){
- return <Navigate to="/"/>
-}
-   
+        return () => {
+            socket.off("connect_error", handleErrors);
+            socket.off(ACTIONS.JOINED);
+            socket.disconnect();
+            socketRef.current = null;
+        };
+    }, [roomId, username, reactNavigator]);
+
+    if (!location.state) {
+        return <Navigate to="/" />;
+    }
 
     return (
         <div className="mainwrap">
             <div className="aside">
                 <div className="asideinner">
                     <div className="logo">
-                        <img
-                            src={logo}
-                            alt="Logo"
-                            className="logoimage"
-                        />
+                        <img src={logo} alt="Logo" className="logoimage" />
                     </div>
 
                     <h3>Connected</h3>
 
                     <div className="clientslist">
                         {clients.map((client) => (
-                            <div
-                                className="client"
-                                key={client.socketId}
-                            >
+                            <div className="client" key={client.socketId}>
                                 <Avatar
                                     name={client.username}
                                     size="50"
@@ -89,13 +92,8 @@ if(!location.state){
                     </div>
                 </div>
 
-                <button className="btn copybtn">
-                    Copy Room ID
-                </button>
-
-                <button className="btn leavebtn">
-                    Leave
-                </button>
+                <button className="btn copybtn">Copy Room ID</button>
+                <button className="btn leavebtn">Leave</button>
             </div>
 
             <div className="editorwrap">
